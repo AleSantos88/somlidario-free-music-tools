@@ -1,12 +1,27 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Music } from "lucide-react";
+import { toast } from "sonner";
 
 const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleRegister = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    setTimeout(() => {
+      localStorage.setItem("user", JSON.stringify({ email, name: email.split("@")[0] }));
+      toast.success("Conta criada com sucesso! Bem-vindo ao Somlidario 🎵");
+      navigate("/dashboard");
+      setLoading(false);
+    }, 600);
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6">
@@ -22,7 +37,7 @@ const Register = () => {
           <p className="text-sm text-muted-foreground mt-1">Start separating tracks for free</p>
         </div>
 
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-1.5">Email</label>
             <Input
@@ -30,6 +45,7 @@ const Register = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
+              required
               className="h-11 bg-card border-border"
             />
           </div>
@@ -40,11 +56,17 @@ const Register = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
+              required
+              minLength={6}
               className="h-11 bg-card border-border"
             />
           </div>
-          <Button className="w-full h-11 gradient-amber text-primary-foreground hover:opacity-90">
-            Create Account
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 gradient-amber text-primary-foreground hover:opacity-90"
+          >
+            {loading ? "Criando conta..." : "Create Account"}
           </Button>
         </form>
 

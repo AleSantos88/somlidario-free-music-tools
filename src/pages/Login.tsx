@@ -1,12 +1,34 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Music } from "lucide-react";
+import { toast } from "sonner";
+
+const FAKE_EMAIL = "musico@somlidario.com";
+const FAKE_PASSWORD = "123456";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    setTimeout(() => {
+      if (email === FAKE_EMAIL && password === FAKE_PASSWORD) {
+        localStorage.setItem("user", JSON.stringify({ email: FAKE_EMAIL, name: "Músico Demo" }));
+        toast.success("Login realizado com sucesso!");
+        navigate("/dashboard");
+      } else {
+        toast.error("Email ou senha incorretos. Use: musico@somlidario.com / 123456");
+      }
+      setLoading(false);
+    }, 600);
+  };
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center px-6">
@@ -22,14 +44,20 @@ const Login = () => {
           <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
         </div>
 
-        <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+        <div className="mb-6 p-3 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
+          <p className="font-medium text-foreground mb-1">🔑 Credenciais de teste:</p>
+          <p>Email: <span className="text-primary font-mono">musico@somlidario.com</span></p>
+          <p>Senha: <span className="text-primary font-mono">123456</span></p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-1.5">Email</label>
             <Input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="musico@somlidario.com"
               className="h-11 bg-card border-border"
             />
           </div>
@@ -39,12 +67,16 @@ const Login = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
+              placeholder="123456"
               className="h-11 bg-card border-border"
             />
           </div>
-          <Button className="w-full h-11 gradient-amber text-primary-foreground hover:opacity-90">
-            Sign In
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full h-11 gradient-amber text-primary-foreground hover:opacity-90"
+          >
+            {loading ? "Entrando..." : "Sign In"}
           </Button>
         </form>
 
