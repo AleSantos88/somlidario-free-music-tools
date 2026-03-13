@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/core/AppLayout";
 import TrackRow from "@/components/player/TrackRow";
 import PlayerControls from "@/components/player/PlayerControls";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface StemTrack {
   id: string;
@@ -15,58 +17,90 @@ export interface StemTrack {
   volume: number;
 }
 
-const initialStems: StemTrack[] = [
-  { id: "lead_vocals", label: "Lead Vocals", group: "Vocals", muted: false, solo: false, volume: 80 },
-  { id: "backing_vocals", label: "Backing Vocals", group: "Vocals", muted: false, solo: false, volume: 70 },
-  { id: "guitar_lead", label: "Lead Guitar", group: "Guitars", muted: false, solo: false, volume: 75 },
-  { id: "guitar_rhythm", label: "Rhythm Guitar", group: "Guitars", muted: false, solo: false, volume: 70 },
-  { id: "acoustic_guitar", label: "Acoustic Guitar", group: "Guitars", muted: false, solo: false, volume: 65 },
-  { id: "bass", label: "Bass", group: "Bass", muted: false, solo: false, volume: 75 },
-  { id: "kick", label: "Kick", group: "Drums", muted: false, solo: false, volume: 80 },
-  { id: "snare", label: "Snare", group: "Drums", muted: false, solo: false, volume: 75 },
-  { id: "hihat", label: "Hi-Hat", group: "Drums", muted: false, solo: false, volume: 60 },
-  { id: "toms", label: "Toms", group: "Drums", muted: false, solo: false, volume: 65 },
-  { id: "cymbals", label: "Cymbals", group: "Drums", muted: false, solo: false, volume: 55 },
-  { id: "overheads", label: "Overheads", group: "Drums", muted: false, solo: false, volume: 60 },
-  { id: "other", label: "Other", group: "Other", muted: false, solo: false, volume: 50 },
-];
-
 const ProjectPlayer = () => {
   const { id } = useParams();
-  const [stems, setStems] = useState<StemTrack[]>(initialStems);
+  const [trackStates, setTrackStates] = useState<Record<string, { muted: boolean; solo: boolean; volume: number }>>({});
   const [isPlaying, setIsPlaying] = useState(false);
 
+  const { data: project, isLoading: loadingProject } = useQuery({
+    queryKey: ["project", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("id", id!)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const { data: stems = [], isLoading: loadingStems } = useQuery({
+    queryKey: ["stems", id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("stems")
+        .select("*")
+        .eq("project_id", id!);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  const tracks: StemTrack[] = stems.map((s) => ({
+    id: s.id,
+    label: s.label,
+    group: s.stem_group,
+    muted: trackStates[s.id]?.muted ?? false,
+    solo: trackStates[s.id]?.solo ?? false,
+    volume: trackStates[s.id]?.volume ?? 75,
+  }));
+
   const toggleMute = (stemId: string) => {
-    setStems((prev) =>
-      prev.map((s) => (s.id === stemId ? { ...s, muted: !s.muted } : s))
-    );
+    setTrackStates((prev) => ({
+      ...prev,
+      [stemId]: { ...prev[stemId], muted: !(prev[stemId]?.muted ?? false), solo: prev[stemId]?.solo ?? false, volume: prev[stemId]?.volume ?? 75 },
+    }));
   };
 
   const toggleSolo = (stemId: string) => {
-    setStems((prev) =>
-      prev.map((s) => (s.id === stemId ? { ...s, solo: !s.solo } : s))
-    );
+    setTrackStates((prev) => ({
+      ...prev,
+      [stemId]: { ...prev[stemId], solo: !(prev[stemId]?.solo ?? false), muted: prev[stemId]?.muted ?? false, volume: prev[stemId]?.volume ?? 75 },
+    }));
   };
 
   const setVolume = (stemId: string, volume: number) => {
-    setStems((prev) =>
-      prev.map((s) => (s.id === stemId ? { ...s, volume } : s))
-    );
+    setTrackStates((prev) => ({
+      ...prev,
+      [stemId]: { ...prev[stemId], volume, muted: prev[stemId]?.muted ?? false, solo: prev[stemId]?.solo ?? false },
+    }));
   };
 
-  const hasSolo = stems.some((s) => s.solo);
+  const hasSolo = tracks.some((s) => s.solo);
 
-  // Group stems
-  const groups = stems.reduce<Record<string, StemTrack[]>>((acc, stem) => {
+  const groups = tracks.reduce<Record<string, StemTrack[]>>((acc, stem) => {
     if (!acc[stem.group]) acc[stem.group] = [];
     acc[stem.group].push(stem);
     return acc;
   }, {});
 
+  if (loadingProject || loadingStems) {
+    return (
+      <AppLayout title="Loading..." subtitle="">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout
-      title="Hotel California"
-      subtitle="Eagles — 12 stems separated"
+      title={project?.title || "Project"}
+      subtitle={`${stems.length} stems separated`}
     >
       <div className="flex items-center gap-3 mb-6">
         <PlayerControls isPlaying={isPlaying} onTogglePlay={() => setIsPlaying(!isPlaying)} />
@@ -78,13 +112,13 @@ const ProjectPlayer = () => {
       </div>
 
       <div className="space-y-6">
-        {Object.entries(groups).map(([group, tracks]) => (
+        {Object.entries(groups).map(([group, groupTracks]) => (
           <div key={group}>
             <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 px-1">
               {group}
             </div>
             <div className="space-y-1">
-              {tracks.map((track) => (
+              {groupTracks.map((track) => (
                 <TrackRow
                   key={track.id}
                   track={track}
