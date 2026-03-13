@@ -1,5 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Upload, CreditCard, Music, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const navItems = [
   { path: "/dashboard", label: "Projects", icon: LayoutDashboard },
@@ -9,6 +11,14 @@ const navItems = [
 
 const AppSidebar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success("Sessão encerrada. Arquivos temporários removidos.");
+    navigate("/");
+  };
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col z-50">
@@ -42,13 +52,13 @@ const AppSidebar = () => {
       </nav>
 
       <div className="p-3 border-t border-sidebar-border">
-        <Link
-          to="/"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 transition-colors duration-150"
+        <button
+          onClick={handleSignOut}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent/50 transition-colors duration-150 w-full"
         >
           <LogOut className="w-4 h-4" />
           Sign Out
-        </Link>
+        </button>
       </div>
     </aside>
   );

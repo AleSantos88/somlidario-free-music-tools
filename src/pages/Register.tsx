@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Register = () => {
   const [email, setEmail] = useState("");
@@ -11,16 +12,23 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      localStorage.setItem("user", JSON.stringify({ email, name: email.split("@")[0] }));
-      toast.success("Conta criada com sucesso! Bem-vindo ao Somlidario 🎵");
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Conta criada com sucesso! Verifique seu email para confirmar.");
       navigate("/dashboard");
-      setLoading(false);
-    }, 600);
+    }
+    setLoading(false);
   };
 
   return (
