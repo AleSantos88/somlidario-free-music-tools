@@ -4,9 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Music } from "lucide-react";
 import { toast } from "sonner";
-
-const FAKE_EMAIL = "musico@somlidario.com";
-const FAKE_PASSWORD = "123456";
+import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -14,20 +12,19 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
-      if (email === FAKE_EMAIL && password === FAKE_PASSWORD) {
-        localStorage.setItem("user", JSON.stringify({ email: FAKE_EMAIL, name: "Músico Demo" }));
-        toast.success("Login realizado com sucesso!");
-        navigate("/dashboard");
-      } else {
-        toast.error("Email ou senha incorretos. Use: musico@somlidario.com / 123456");
-      }
-      setLoading(false);
-    }, 600);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Login realizado com sucesso!");
+      navigate("/dashboard");
+    }
+    setLoading(false);
   };
 
   return (
@@ -44,12 +41,6 @@ const Login = () => {
           <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
         </div>
 
-        <div className="mb-6 p-3 rounded-lg bg-muted border border-border text-xs text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">🔑 Credenciais de teste:</p>
-          <p>Email: <span className="text-primary font-mono">musico@somlidario.com</span></p>
-          <p>Senha: <span className="text-primary font-mono">123456</span></p>
-        </div>
-
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="text-sm font-medium text-foreground block mb-1.5">Email</label>
@@ -57,7 +48,8 @@ const Login = () => {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="musico@somlidario.com"
+              placeholder="you@example.com"
+              required
               className="h-11 bg-card border-border"
             />
           </div>
@@ -67,7 +59,8 @@ const Login = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="123456"
+              placeholder="••••••••"
+              required
               className="h-11 bg-card border-border"
             />
           </div>
