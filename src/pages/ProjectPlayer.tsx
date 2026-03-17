@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/core/AppLayout";
@@ -7,6 +7,7 @@ import PlayerControls from "@/components/player/PlayerControls";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 export interface StemTrack {
   id: string;
@@ -20,7 +21,6 @@ export interface StemTrack {
 const ProjectPlayer = () => {
   const { id } = useParams();
   const [trackStates, setTrackStates] = useState<Record<string, { muted: boolean; solo: boolean; volume: number }>>({});
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const { data: project, isLoading: loadingProject } = useQuery({
     queryKey: ["project", id],
@@ -48,6 +48,17 @@ const ProjectPlayer = () => {
     },
     enabled: !!id,
   });
+
+  // Get public URL for the original uploaded file
+  const audioUrl = useMemo(() => {
+    if (!project?.original_file_path) return null;
+    const { data } = supabase.storage
+      .from("music_files")
+      .getPublicUrl(project.original_file_path);
+    return data?.publicUrl || null;
+  }, [project?.original_file_path]);
+
+  const { isPlaying, currentTime, duration, togglePlay, seek, isLoading: audioLoading, error: audioError } = useAudioPlayer(audioUrl);
 
   const tracks: StemTrack[] = stems.map((s) => ({
     id: s.id,
@@ -102,12 +113,28 @@ const ProjectPlayer = () => {
       title={project?.title || "Project"}
       subtitle={`${stems.length} stems separated`}
     >
-      <div className="flex items-center gap-3 mb-6">
-        <PlayerControls isPlaying={isPlaying} onTogglePlay={() => setIsPlaying(!isPlaying)} />
-        <div className="flex-1" />
+      {/* Player controls with seek bar */}
+      <div className="mb-6 space-y-3">
+        <PlayerControls
+          isPlaying={isPlaying}
+          onTogglePlay={togglePlay}
+          currentTime={currentTime}
+          duration={duration}
+          onSeek={seek}
+          isLoading={audioLoading}
+        />
+        {audioError && (
+          <p className="text-xs text-destructive">{audioError}</p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between mb-4">
+        <p className="text-xs text-muted-foreground">
+          A separação de instrumentos por IA será implementada em breve. Por enquanto, você pode ouvir a faixa original.
+        </p>
         <Button variant="outline" size="sm" className="h-9 border-border text-foreground hover:bg-muted">
           <Download className="w-4 h-4 mr-1.5" />
-          Download All
+          Download
         </Button>
       </div>
 
